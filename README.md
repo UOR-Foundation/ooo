@@ -1,2 +1,2 @@
-# Object Oriented Ontology Quadruple Object in UOR
+# Object Oriented Ontology (OOO) Quadruple Object in UOR
 
