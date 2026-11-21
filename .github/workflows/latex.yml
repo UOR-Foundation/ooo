@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       latex: ${{ steps.classify.outputs.latex }}
+      publish: ${{ steps.classify.outputs.publish }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,6 +38,7 @@ jobs:
 
           base, head = os.environ.get("BASE", ""), os.environ["HEAD"]
           latex = True
+          publish = False
           if base and base != "0" * 40:
               result = subprocess.run(
                   ["git", "diff", "--name-status", "-z", "--no-renames", base, head],
@@ -53,10 +55,12 @@ jobs:
                   )
                   for status, path in changes
               )
+              publish = any(path.endswith(b".tex") for _, path in changes)
               print("Changed paths:", [p.decode("utf-8", "replace") for _, p in changes])
           print("LaTeX compilation required:", latex)
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"latex={str(latex).lower()}\n")
+              output.write(f"publish={str(publish).lower()}\n")
           PY
 
       - name: Check README links and local PNG assets
@@ -106,7 +110,7 @@ jobs:
   publish:
     name: publish
     needs: [build]
-    if: github.event_name == 'push' && needs.build.outputs.latex == 'true'
+    if: github.event_name == 'push' && needs.build.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
