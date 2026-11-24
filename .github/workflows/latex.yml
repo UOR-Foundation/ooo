@@ -48,13 +48,37 @@ jobs:
               if len(fields) % 2:
                   raise SystemExit("Malformed git diff: refusing to classify")
               changes = list(zip(fields[::2], fields[1::2]))
-              latex = not changes or any(
-                  status != b"M" or not (
-                      path == b"README.md"
-                      or (path.startswith(b"assets/") and path.endswith(b".png"))
-                  )
-                  for status, path in changes
-              )
+              def needs_latex(changed):
+                  if not changed:
+                      return True
+                  for status, path in changed:
+                      readme = status == b"M" and path == b"README.md"
+                      png = (
+                          status == b"M"
+                          and path.startswith(b"assets/")
+                          and path.endswith(b".png")
+                      )
+                      maintainers = (
+                          status in (b"A", b"M")
+                          and path == b"MAINTAINERS.md"
+                      )
+                      if not (readme or png or maintainers):
+                          return True
+                  return False
+
+              # Protect the fast path against input or source scope drift.
+              assert not needs_latex([(b"A", b"MAINTAINERS.md")])
+              assert not needs_latex([(b"M", b"MAINTAINERS.md")])
+              assert not needs_latex([(b"M", b"README.md")])
+              assert needs_latex([])
+              assert needs_latex([(b"D", b"MAINTAINERS.md")])
+              assert needs_latex([(b"A", b"AGENTS.md")])
+              assert needs_latex([(b"M", b"ooo.tex")])
+              assert needs_latex([
+                  (b"A", b"MAINTAINERS.md"),
+                  (b"M", b".github/workflows/latex.yml"),
+              ])
+              latex = needs_latex(changes)
               publish = any(path.endswith(b".tex") for _, path in changes)
               print("Changed paths:", [p.decode("utf-8", "replace") for _, p in changes])
           print("LaTeX compilation required:", latex)
